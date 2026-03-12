@@ -20,6 +20,19 @@ export interface Employee {
   weeklyBonus: number;
   hireDate: string;
   avatarUrl: string;
+  birthdayDate?: string; // 'YYYY-MM-DD'
+}
+
+export interface Task {
+  id: string;
+  employeeId: string;
+  title: string;
+  description?: string;
+  frequency: 'única' | 'semanal' | 'mensual';
+  reviewDay?: number; // semanal: 0=Lun…6=Dom | mensual: 1-28
+  dueDate?: string;   // solo para frecuencia 'única'
+  status: 'pending' | 'in_progress' | 'done';
+  createdAt: string;
 }
 
 export interface Loan {

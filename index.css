@@ -1,0 +1,122 @@
+/* ── PeopleCore Theme ──────────────────────────────────────── */
+:root {
+    --color-charcoal: #FFFFFF;
+    --color-charcoal-darker: #F5F5F7;
+    --color-charcoal-lighter: #FFFFFF;
+    --color-titanium: #1D1D1F;
+    --panel-border: rgba(0, 0, 0, 0.06);
+    --sidebar-width: 220px;
+}
+
+.dark {
+    --color-charcoal: #111113;
+    --color-charcoal-darker: #09090b;
+    --color-charcoal-lighter: #18181b;
+    --color-titanium: #EDEDF0;
+    --panel-border: rgba(255, 255, 255, 0.07);
+}
+
+body {
+    background-color: var(--color-charcoal-darker);
+    color: var(--color-titanium);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Glass Panel ────────────────────────────────────────────── */
+.glass-panel {
+    background: var(--color-charcoal);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--panel-border);
+}
+
+/* ── Inputs ─────────────────────────────────────────────────── */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.5);
+    cursor: pointer;
+}
+
+/* ── Animations ─────────────────────────────────────────────── */
+@keyframes slideIn {
+    from { transform: translateY(16px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+    50%       { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.15); }
+}
+
+.animate-slide-in  { animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-fade-in   { animation: fadeIn  0.25s ease; }
+.animate-glow      { animation: pulse-glow 2.5s ease-in-out infinite; }
+
+/* ── Sidebar ────────────────────────────────────────────────── */
+.sidebar-nav {
+    width: var(--sidebar-width);
+    min-height: 100vh;
+    background: var(--color-charcoal);
+    border-right: 1px solid var(--panel-border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    color: #6B7280;
+}
+.sidebar-nav-item:hover { background: rgba(118,120,237,0.08); color: #E8E8EA; }
+.sidebar-nav-item.active {
+    background: rgba(118,120,237,0.15);
+    color: #8b5cf6;
+}
+.sidebar-nav-item.active .nav-icon { color: #8b5cf6; }
+
+/* ── Bento Grid ─────────────────────────────────────────────── */
+.bento-card {
+    background: var(--color-charcoal);
+    border: 1px solid var(--panel-border);
+    border-radius: 24px;
+    padding: 24px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.bento-card:hover { border-color: rgba(118,120,237,0.2); }
+
+/* ── Task badges ─────────────────────────────────────────────── */
+.badge-today {
+    background: rgba(217,4,41,0.15);
+    color: #D90429;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(217,4,41,0.2);
+}
+.badge-pending  { background: rgba(118,120,237,0.12); color: #8b5cf6; }
+.badge-progress { background: rgba(247,184,1,0.12);  color: #F7B801; }
+.badge-done     { background: rgba(16,185,129,0.12); color: #10B981; }

@@ -151,7 +151,7 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Departamento</label>
-                <select 
+                <select
                   value={formData.department}
                   onChange={e => setFormData({ ...formData, department: e.target.value as any })}
                   className="w-full bg-white/5 border border-white/10 rounded-xl h-12 px-4 text-white focus:ring-1 focus:ring-electric transition-all appearance-none"
@@ -161,13 +161,26 @@ export const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
               </div>
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Fecha de Ingreso</label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={formData.hireDate}
                   onChange={e => setFormData({ ...formData, hireDate: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 rounded-xl h-12 px-4 text-white focus:ring-1 focus:ring-electric transition-all"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                Fecha de Nacimiento <span className="text-slate-600 normal-case font-normal">(opcional)</span>
+              </label>
+              <input
+                type="date"
+                title="Fecha de Nacimiento"
+                value={formData.birthdayDate || ''}
+                onChange={e => setFormData({ ...formData, birthdayDate: e.target.value || undefined })}
+                className="w-full bg-white/5 border border-white/10 rounded-xl h-12 px-4 text-white focus:ring-1 focus:ring-electric transition-all"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
