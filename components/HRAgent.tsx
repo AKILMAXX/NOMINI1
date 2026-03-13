@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import Anthropic from '@anthropic-ai/sdk';
 import { Employee } from '../types';
 
 interface HRAgentProps {
@@ -8,12 +8,28 @@ interface HRAgentProps {
   stats: any;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SYSTEM PROMPT
+// Copia aquí las instrucciones de tu agente de Claude Projects.
+// ─────────────────────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `Eres el cerebro estratégico de NOMINI — un Chief People Officer de alto nivel llamado Marcus Chen (AI Version).
+Tu objetivo es optimizar el capital humano y la rentabilidad financiera.
+Eres analítico, ejecutivo y visionario. Responde siempre en español, con tono profesional y directo.
+Usa términos de negocios, sé audaz en tus recomendaciones y fundamenta cada consejo en los datos proporcionados.`;
+
 export const HRAgent: React.FC<HRAgentProps> = ({ employees, stats }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  // Full conversation history sent to the API on each turn
+  const [history, setHistory] = useState<Anthropic.MessageParam[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const client = useRef(new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    dangerouslyAllowBrowser: true,
+  }));
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -26,32 +42,60 @@ export const HRAgent: React.FC<HRAgentProps> = ({ employees, stats }) => {
     if (!query.trim() || isTyping) return;
 
     const userMessage = query;
-    setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setQuery('');
     setIsTyping(true);
 
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `CONTEXTO DEL SISTEMA NOMINI:
-      - Empleados: ${JSON.stringify(employees.map(e => ({ n: e.name, p: e.position, d: e.department, s: e.baseWeeklySalary })))}
-      - Métricas actuales: Nómina total ${stats.total}, Ratio bonos ${((stats.totalBonus / stats.total) * 100).toFixed(1)}%, Asistencia ${stats.attendanceRate.toFixed(1)}%.
-      
-      PREGUNTA DEL USUARIO: ${userMessage}
-      
-      INSTRUCCIÓN: Responde como Marcus Chen (AI Version), un Chief People Officer de alto nivel. Sé estratégico, directo, utiliza términos de negocios y aporta valor basado en los datos proporcionados. Si te piden un consejo, sé audaz y profesional. Responde en español.`;
+    // Append user message to UI
+    setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: prompt,
-        config: {
-          systemInstruction: "Eres el cerebro estratégico de NOMINI. Tu objetivo es optimizar el capital humano y la rentabilidad financiera. Eres analítico, ejecutivo y visionario."
-        }
+    // Build context-enriched user content
+    const contextualContent = `CONTEXTO DEL SISTEMA NOMINI:
+- Empleados: ${JSON.stringify(employees.map(e => ({ n: e.name, p: e.position, d: e.department, s: e.baseWeeklySalary })))}
+- Nómina total: ${stats.total}, Ratio bonos: ${((stats.totalBonus / stats.total) * 100).toFixed(1)}%, Asistencia: ${stats.attendanceRate.toFixed(1)}%
+
+PREGUNTA: ${userMessage}`;
+
+    const newHistory: Anthropic.MessageParam[] = [
+      ...history,
+      { role: 'user', content: contextualContent },
+    ];
+
+    // Add empty AI message placeholder for streaming
+    setMessages(prev => [...prev, { role: 'ai', text: '' }]);
+
+    try {
+      const stream = client.current.messages.stream({
+        model: 'claude-opus-4-6',
+        max_tokens: 2048,
+        thinking: { type: 'adaptive' },
+        system: SYSTEM_PROMPT,
+        messages: newHistory,
       });
 
-      setMessages(prev => [...prev, { role: 'ai', text: response.text || "No logré procesar el análisis. Intente de nuevo." }]);
+      let fullText = '';
+      stream.on('text', (delta) => {
+        fullText += delta;
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'ai', text: fullText };
+          return updated;
+        });
+      });
+
+      const finalMessage = await stream.finalMessage();
+
+      // Persist full conversation history for next turn
+      setHistory([
+        ...newHistory,
+        { role: 'assistant', content: finalMessage.content },
+      ]);
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'ai', text: "Error de conexión con el núcleo de inteligencia." }]);
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: 'ai', text: 'Error de conexión con el núcleo de inteligencia.' };
+        return updated;
+      });
     } finally {
       setIsTyping(false);
     }
@@ -61,7 +105,7 @@ export const HRAgent: React.FC<HRAgentProps> = ({ employees, stats }) => {
     <div className="relative z-[100]">
       {/* Botón de Entrada Táctica */}
       {!isOpen && (
-        <div 
+        <div
           onClick={() => setIsOpen(true)}
           className="bg-charcoal-lighter/80 border border-electric/30 p-6 rounded-[2.5rem] flex items-center justify-between cursor-pointer hover:border-electric hover:bg-electric/5 transition-all group shadow-2xl backdrop-blur-xl animate-slide-in"
         >
@@ -74,7 +118,7 @@ export const HRAgent: React.FC<HRAgentProps> = ({ employees, stats }) => {
             </div>
             <div>
               <h4 className="text-white text-lg font-black tracking-tighter uppercase italic">Strategic Advisor AI</h4>
-              <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Online & Synchronized with Vault</p>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Claude · Online & Synchronized with Vault</p>
             </div>
           </div>
           <div className="hidden md:flex flex-col items-end">
@@ -91,16 +135,16 @@ export const HRAgent: React.FC<HRAgentProps> = ({ employees, stats }) => {
           {/* Header */}
           <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
             <div className="flex items-center gap-4">
-               <div className="w-10 h-10 bg-electric/20 rounded-xl flex items-center justify-center text-electric">
-                  <span className="material-symbols-outlined">terminal</span>
-               </div>
-               <div>
-                  <h4 className="text-white text-sm font-black uppercase tracking-widest">Command Interface</h4>
-                  <p className="text-[8px] font-black text-emerald uppercase tracking-[0.4em]">Active Real-time Processing</p>
-               </div>
+              <div className="w-10 h-10 bg-electric/20 rounded-xl flex items-center justify-center text-electric">
+                <span className="material-symbols-outlined">terminal</span>
+              </div>
+              <div>
+                <h4 className="text-white text-sm font-black uppercase tracking-widest">Command Interface</h4>
+                <p className="text-[8px] font-black text-emerald uppercase tracking-[0.4em]">Claude · Active Real-time Processing</p>
+              </div>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-slate-600 hover:text-white transition-colors">
-               <span className="material-symbols-outlined">close</span>
+              <span className="material-symbols-outlined">close</span>
             </button>
           </div>
 
@@ -108,31 +152,31 @@ export const HRAgent: React.FC<HRAgentProps> = ({ employees, stats }) => {
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar">
             {messages.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-center opacity-30">
-                 <div className="w-20 h-20 bg-electric/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                    <span className="material-symbols-outlined text-5xl">cognition</span>
-                 </div>
-                 <p className="text-[10px] font-black uppercase tracking-[0.3em] max-w-[200px]">
-                   Listo para auditar la nómina y sugerir estrategias de crecimiento.
-                 </p>
+                <div className="w-20 h-20 bg-electric/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                  <span className="material-symbols-outlined text-5xl">cognition</span>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] max-w-[200px]">
+                  Listo para auditar la nómina y sugerir estrategias de crecimiento.
+                </p>
               </div>
             )}
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-in`}>
                 <div className={`max-w-[80%] p-5 rounded-3xl text-xs font-bold leading-relaxed ${
-                  m.role === 'user' 
-                    ? 'bg-electric text-white rounded-tr-none shadow-xl shadow-electric/20' 
+                  m.role === 'user'
+                    ? 'bg-electric text-white rounded-tr-none shadow-xl shadow-electric/20'
                     : 'bg-white/5 text-slate-200 border border-white/5 rounded-tl-none italic'
                 }`}>
-                  {m.text}
+                  {m.text || (m.role === 'ai' && isTyping ? '...' : m.text)}
                 </div>
               </div>
             ))}
-            {isTyping && (
+            {isTyping && messages[messages.length - 1]?.role === 'ai' && messages[messages.length - 1]?.text === '' && (
               <div className="flex justify-start animate-pulse">
                 <div className="bg-white/5 border border-white/5 p-4 rounded-2xl flex gap-2">
-                   <div className="w-1.5 h-1.5 bg-electric rounded-full animate-bounce"></div>
-                   <div className="w-1.5 h-1.5 bg-electric rounded-full animate-bounce delay-100"></div>
-                   <div className="w-1.5 h-1.5 bg-electric rounded-full animate-bounce delay-200"></div>
+                  <div className="w-1.5 h-1.5 bg-electric rounded-full animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 bg-electric rounded-full animate-bounce delay-100"></div>
+                  <div className="w-1.5 h-1.5 bg-electric rounded-full animate-bounce delay-200"></div>
                 </div>
               </div>
             )}
@@ -140,22 +184,22 @@ export const HRAgent: React.FC<HRAgentProps> = ({ employees, stats }) => {
 
           {/* Input Area */}
           <div className="p-6 bg-white/[0.01] border-t border-white/5">
-             <form onSubmit={handleAsk} className="relative">
-                <input 
-                  type="text" 
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Ask for strategic advice (e.g. 'Optimize payroll cost')"
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl h-14 pl-6 pr-20 text-xs text-white placeholder:text-slate-700 focus:ring-1 focus:ring-electric transition-all"
-                />
-                <button 
-                  type="submit"
-                  disabled={isTyping}
-                  className="absolute right-2 top-2 h-10 px-6 bg-electric text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50"
-                >
-                  SEND
-                </button>
-             </form>
+            <form onSubmit={handleAsk} className="relative">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Ask for strategic advice (e.g. 'Optimize payroll cost')"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl h-14 pl-6 pr-20 text-xs text-white placeholder:text-slate-700 focus:ring-1 focus:ring-electric transition-all"
+              />
+              <button
+                type="submit"
+                disabled={isTyping}
+                className="absolute right-2 top-2 h-10 px-6 bg-electric text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50"
+              >
+                SEND
+              </button>
+            </form>
           </div>
         </div>
       )}
